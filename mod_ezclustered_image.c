@@ -77,7 +77,7 @@ static int ezclustered_image_handler(request_rec *r)
         return DECLINED;
     }
 
-    real_filename = apr_pstrcat(r->pool, path_prefix, r->path_info);
+    real_filename = apr_pstrcat(r->pool, path_prefix, r->path_info, NULL);
 
 #ifdef DEBUG_ENABLED
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
