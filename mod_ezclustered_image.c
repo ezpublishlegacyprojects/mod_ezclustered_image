@@ -17,7 +17,7 @@
 **  
 **  DBDriver mysql
 **  DBDParams "host=localhost port=3306 user=<user> pass=<pass> dbname=<dbname>"
-**  DBDPrepareSQL "SELECT datatype, mtime, size, filedata FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image';" ezdbfile_sql
+**  DBDPrepareSQL "SELECT datatype, mtime, size, filedata, offset FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image' ORDER BY offset;" ezdbfile_sql
 **  
 **  <LocationMatch "/var/([^/]+/)?storage/(images|images-versioned)+/.*">
 **      SetHandler ezclustered_image
