@@ -41,7 +41,7 @@ static int ezclustered_image_handler(request_rec *r)
 {
     ap_dbd_t *dbd       = ap_dbd_acquire(r);
     char *path_prefix   = "var";
-    char *real_filename = NULL;
+    const char *real_filename = NULL;
 
     const char *prepared_statement_label   = "ezdbfile_sql";
     apr_dbd_prepared_t *prepared_statement = NULL;
