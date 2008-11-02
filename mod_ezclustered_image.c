@@ -74,7 +74,7 @@ static int ezclustered_image_handler(request_rec *r)
 
     if( !r->path_info || strlen(r->path_info) <= 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "No file to fetch");
-        return DECLINED;
+        return HTTP_NOT_FOUND;
     }
 
     real_filename = apr_pstrcat(r->pool, path_prefix, r->path_info, NULL);
@@ -107,11 +107,11 @@ static int ezclustered_image_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                       "Query execution error looking up '%s' "
                       "in database", real_filename);
-        return DECLINED;
+        return HTTP_NOT_FOUND;
     }
 
     if(apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1) == -1) {
-        return DECLINED;
+        return HTTP_NOT_FOUND;
     }
 
     datatype = apr_dbd_get_entry(dbd->driver, row, 0);
