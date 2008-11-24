@@ -14,11 +14,11 @@
 **    #   httpd.conf
 
 **  LoadModule ezclustered_image_module modules/mod_ezclustered_image.so
-**  
+**
 **  DBDriver mysql
 **  DBDParams "host=localhost port=3306 user=<user> pass=<pass> dbname=<dbname>"
 **  DBDPrepareSQL "SELECT datatype, mtime, size, filedata, offset FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image' ORDER BY offset;" ezdbfile_sql
-**  
+**
 **  <LocationMatch "/var/([^/]+/)?storage/(images|images-versioned)+/.*">
 **      SetHandler ezclustered_image
 **  </LocationMatch>
@@ -46,23 +46,26 @@ static int ezclustered_image_handler(request_rec *r)
     const char *prepared_statement_label   = "ezdbfile_sql";
     apr_dbd_prepared_t *prepared_statement = NULL;
 
-    int select_error_code  = -1;
+    apr_int16_t select_error_code  = -1;
     apr_dbd_results_t *res = NULL;
     apr_dbd_row_t     *row = NULL;
-    apr_status_t rv;
+    int rv = -1;
 
     /* image metadata */
-    const char *datatype = NULL;
-    const char *mtime = NULL;
-    /* const char *size = NULL; */
+    const char *datatype  = NULL;
+    const char *mtime     = NULL;
 
     /* image contents */
-    apr_bucket_brigade *file_data;
+    apr_bucket_brigade *bb;
 
     /* apr_time_exp_t *date_format = NULL; */
-    
-    if (strcmp(r->handler, "ezclustered_image")) {
+
+    if(!r->handler || strcmp(r->handler, "ezclustered_image")) {
         return DECLINED;
+    }
+
+    if(r->method_number != M_GET) {
+        return HTTP_METHOD_NOT_ALLOWED;
     }
 
     if(dbd == NULL) {
@@ -81,7 +84,7 @@ static int ezclustered_image_handler(request_rec *r)
 
 #ifdef DEBUG_ENABLED
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
-                  "Path INFO : %s", 
+                  "Path INFO : %s",
                   r->path_info);
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r,
@@ -117,35 +120,36 @@ static int ezclustered_image_handler(request_rec *r)
     datatype = apr_dbd_get_entry(dbd->driver, row, 0);
     mtime    = apr_dbd_get_entry(dbd->driver, row, 1);
 
-    /* apr_table_setn(r->headers_out, "Last-Modified", TODO); */
-    /* apr_table_setn(r->headers_out, "Expires", TODO); */
-    apr_table_setn(r->headers_out, "Accept-Ranges", "bytes");
-    apr_table_setn(r->headers_out, "Connection", "close");
-
     ap_set_content_type(r, datatype);
 
+    // displaying image contents
     for (rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1);
          rv != -1;
          rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1)) {
 
-        file_data = apr_brigade_create(r->pool, r->connection->bucket_alloc);
-        
-        if(apr_dbd_datum_get(dbd->driver, row, 3, APR_DBD_TYPE_BLOB, file_data) != APR_SUCCESS)
-        {
-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "Unable to fetch file data");
-            apr_brigade_destroy(file_data);
-            return DECLINED;
-        }
+        bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
 
-        apr_brigade_destroy(file_data);
+        apr_dbd_datum_get(dbd->driver, row, 3, APR_DBD_TYPE_BLOB, bb);
+
+        ap_pass_brigade(r->connection->output_filters, bb);
     }
+
+
+    /* TODO : apr_table_setn(r->headers_out, "Last-Modified", xxx); */
+    /* TODO : apr_table_setn(r->headers_out, "Expires", xxx); */
+    apr_table_setn(r->headers_out, "Accept-Ranges", "bytes");
+    apr_table_setn(r->headers_out, "Connection", "close");
+
 
     return OK;
 }
 
 static void ezclustered_image_register_hooks(apr_pool_t *p)
 {
-    ap_hook_handler(ezclustered_image_handler, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_handler(ezclustered_image_handler, 
+                    NULL, 
+                    NULL, 
+                    APR_HOOK_MIDDLE);
 }
 
 /* Dispatch list for API hooks */
