@@ -49,7 +49,6 @@ static int ezclustered_image_handler(request_rec *r)
     apr_int16_t select_error_code  = -1;
     apr_dbd_results_t *res = NULL;
     apr_dbd_row_t     *row = NULL;
-    int rv = -1;
 
     /* image metadata */
     const char *datatype  = NULL;
@@ -113,33 +112,28 @@ static int ezclustered_image_handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-    if(apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1) == -1) {
+    if(apr_dbd_get_row(dbd->driver, r->pool, res, &row, 1) == -1) {
         return HTTP_NOT_FOUND;
     }
-
+    
     datatype = apr_dbd_get_entry(dbd->driver, row, 0);
     mtime    = apr_dbd_get_entry(dbd->driver, row, 1);
-
-    ap_set_content_type(r, datatype);
-
-    // displaying image contents
-    for (rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1);
-         rv != -1;
-         rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1)) {
-
-        bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
-
-        apr_dbd_datum_get(dbd->driver, row, 3, APR_DBD_TYPE_BLOB, bb);
-
-        ap_pass_brigade(r->connection->output_filters, bb);
-    }
-
 
     /* TODO : apr_table_setn(r->headers_out, "Last-Modified", xxx); */
     /* TODO : apr_table_setn(r->headers_out, "Expires", xxx); */
     apr_table_setn(r->headers_out, "Accept-Ranges", "bytes");
-    apr_table_setn(r->headers_out, "Connection", "close");
 
+    ap_set_content_type(r, datatype);
+
+    do {
+
+        bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
+        apr_dbd_datum_get(dbd->driver, row, 3, APR_DBD_TYPE_BLOB, bb);
+        ap_pass_brigade(r->connection->output_filters, bb);
+
+    } while( apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1) == 0);
+
+    apr_table_setn(r->headers_out, "Connection", "close");
 
     return OK;
 }
