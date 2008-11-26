@@ -12,12 +12,12 @@
 **  for the URL /ezclustered_image in as follows:
 **
 **    #   httpd.conf
-
+**
 **  LoadModule ezclustered_image_module modules/mod_ezclustered_image.so
 **
 **  DBDriver mysql
 **  DBDParams "host=localhost port=3306 user=<user> pass=<pass> dbname=<dbname>"
-**  DBDPrepareSQL "SELECT datatype, mtime, size, filedata, offset FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image' ORDER BY offset;" ezdbfile_sql
+**  DBDPrepareSQL "SELECT datatype, mtime, size, filedata, ezdbfile.name_hash FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image' ORDER BY offset;" ezdbfile_sql
 **
 **  <LocationMatch "/var/([^/]+/)?storage/(images|images-versioned)+/.*">
 **      SetHandler ezclustered_image
@@ -34,9 +34,11 @@
 #include "http_log.h"
 #include "ap_config.h"
 #include "apr_dbd.h"
+#include "util_time.h"
 #include "mod_dbd.h"
 #include "apr_strings.h"
 
+/* {{{ static int ezclustered_image_handler(request_rec *r) */
 static int ezclustered_image_handler(request_rec *r)
 {
     ap_dbd_t *dbd       = ap_dbd_acquire(r);
@@ -52,12 +54,12 @@ static int ezclustered_image_handler(request_rec *r)
 
     /* image metadata */
     const char *datatype  = NULL;
-    const char *mtime     = NULL;
+    const char *name_hash = NULL;
+    time_t  mtime;
+    apr_time_t ansi_time;
 
     /* image contents */
     apr_bucket_brigade *bb;
-
-    /* apr_time_exp_t *date_format = NULL; */
 
     if(!r->handler || strcmp(r->handler, "ezclustered_image")) {
         return DECLINED;
@@ -116,28 +118,82 @@ static int ezclustered_image_handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
     
-    datatype = apr_dbd_get_entry(dbd->driver, row, 0);
-    mtime    = apr_dbd_get_entry(dbd->driver, row, 1);
+    /* {{{ Fetching datatype, mtime, name_hash cols */
+    datatype  = apr_dbd_get_entry(dbd->driver, row, 0);
+    mtime     = (time_t)atoi(apr_dbd_get_entry(dbd->driver, row, 1));
+    name_hash = apr_dbd_get_entry(dbd->driver, row, 4);
+    /* }}} */
+    
+    /* {{{ Expires header
+     *
+     * The image never expires.
+     * As it is a content image, whenever it is updated a new version
+     * is created so it is safe to cache it forever
+     *
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21
+     *
+     * To mark a response as "never expires," an origin server sends 
+     * an Expires date approximately one year from the time the response is sent. 
+     * HTTP/1.1 servers SHOULD NOT send Expires dates more than one year in the future.
+     *
+     * image mtime + 1 year
+     */ 
+    char *expires_date;
+    mtime = mtime + 31536000;
+    apr_time_ansi_put(&ansi_time, mtime);
 
-    /* TODO : apr_table_setn(r->headers_out, "Last-Modified", xxx); */
-    /* TODO : apr_table_setn(r->headers_out, "Expires", xxx); */
+    expires_date = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+    apr_rfc822_date(expires_date, ansi_time);
+
+    apr_table_setn(r->headers_out, "Expires", expires_date);
+    /* }}} */
+
+    /* {{{ Etag header */
+    /*
+     * The image name_hash should be strong enough
+     * to ensure unicity
+     */
+    apr_table_setn(r->headers_out, "Etag", name_hash);
+    /* }}} */
+
+    /* {{{ Last-Modified header, disabled for instance */
+    /*
+    char *last_modified_date;
+    apr_time_ansi_put(&ansi_time, mtime);
+
+    last_modified_date = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+    apr_rfc822_date(last_modified_date, ansi_time);
+
+
+    apr_table_setn(r->headers_out, "Last-Modified", last_modified_date);
+    */
+    /* }}} */
+
+    /* {{{ Additional headers */
     apr_table_setn(r->headers_out, "Accept-Ranges", "bytes");
+    /* Will trigger an X-Pad header */
+    /* apr_table_setn(r->headers_out, "Connection", "close"); */
+    /* }}} */
 
+    /* {{{ Image contents */
+    /* image/png|gif|jpg */
     ap_set_content_type(r, datatype);
 
     do {
 
         bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
         apr_dbd_datum_get(dbd->driver, row, 3, APR_DBD_TYPE_BLOB, bb);
-        ap_pass_brigade(r->connection->output_filters, bb);
+        ap_pass_brigade(r->output_filters, bb);
 
     } while( apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1) == 0);
-
-    apr_table_setn(r->headers_out, "Connection", "close");
+    /* }}} */
 
     return OK;
 }
+/* }}} */
 
+/* {{{ static void ezclustered_image_register_hooks(apr_pool_t *p) */
 static void ezclustered_image_register_hooks(apr_pool_t *p)
 {
     ap_hook_handler(ezclustered_image_handler, 
@@ -145,8 +201,9 @@ static void ezclustered_image_register_hooks(apr_pool_t *p)
                     NULL, 
                     APR_HOOK_MIDDLE);
 }
+/* }}} */
 
-/* Dispatch list for API hooks */
+/* {{{ module AP_MODULE_DECLARE_DATA ezclustered_image_module */
 module AP_MODULE_DECLARE_DATA ezclustered_image_module = {
     STANDARD20_MODULE_STUFF,
     NULL,                  /* create per-dir    config structures */
@@ -154,6 +211,10 @@ module AP_MODULE_DECLARE_DATA ezclustered_image_module = {
     NULL,                  /* create per-server config structures */
     NULL,                  /* merge  per-server config structures */
     NULL,                  /* table of config file commands       */
-    ezclustered_image_register_hooks  /* register hooks                      */
+    ezclustered_image_register_hooks  /* register hooks           */
 };
+/* }}} */
 
+/* 
+ * vim600: sw=4 ts=4 fdm=marker
+ */
