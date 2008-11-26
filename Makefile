@@ -13,7 +13,7 @@ APXS=apxs
 APACHECTL=apachectl
 
 #   additional defines, includes and libraries
-DEFS=-DDEBUG_ENABLED
+#DEFS=-DDEBUG_ENABLED
 #INCLUDES=-I/Users/jr/downloads/softs/apache-2.2.9/modules/database
 #LIBS=-L/Users/jr/downloads/softs/apache-2.2.9/modules/database/ -lmy_dbd
 
