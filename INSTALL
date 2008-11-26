@@ -1,0 +1,86 @@
+What is this extension made for ?
+=================================
+
+This module fetches image content objects from 
+the eZ Publish cluster. This module is a replacement
+of the index_image*.php file.
+
+Prerequisities
+==============
+
+Prerequisities for the module are described below : 
+
+1. Apache 2.2
+2. mod_dbd loaded [http://httpd.apache.org/docs/2.2/mod/mod_dbd.html]
+2. Apache compiled with MySQL support, ie with ``--with-mysql=/path/to/mysql``
+
+Supported databases
+===================
+
+This module has been successfully testef with
+MySQL but should work fine with PostgreSQL and Oracle
+
+Compiling this extension ?
+==========================
+
+I hope this copy/paste tutorial will be usefull
+
+::
+
+    tar zxvf mod_ezclustered_image.tar.gz
+    cd mod_ezclustered_image
+    apxs -ci mod_ezclustered_image.c
+    apache2ctl restart
+
+
+Loading the module
+==================
+
+Just copy/paste the following line in your httpd.conf
+
+::
+
+    LoadModule ezclustered_image_module modules/mod_ezclustered_image.so
+
+Configuring the module
+======================
+
+In your VirtualHost, you have to do the following :
+
+1. remove the following RewriteRules : 
+
+::
+
+    Rewriterule ^/var/([^/]+/)?storage/images-versioned/.*  /index_cluster.php  [L]
+    Rewriterule ^/var/([^/]+/)?storage/images/.*            /index_cluster.php  [L]
+
+2. add the following configuration in your VirtualHost:
+
+::
+
+    DBDriver mysql
+    DBDParams "host=localhost port=3306 user=root pass=publish dbname=dicod"
+    DBDPrepareSQL "SELECT datatype, mtime, size, filedata, ezdbfile.name_hash FROM ezdbfile, ezdbfile_data WHERE ezdbfile.name_hash = ezdbfile_data.name_hash AND ezdbfile.name_hash = MD5( %s ) AND scope = 'image' ORDER BY offset;" ezdbfile_sql
+
+    <LocationMatch "/var/([^/]+/)?storage/(images|images-versioned)+/.*">
+        SetHandler ezclustered_image
+    </LocationMatch>
+
+
+You must be warned about three things :
+
+1. Splitting the "DBDPrepareSQL" line will not work, you will get a configuration error
+
+2. Changing the name of the prepared statement ``ezdbfile_sql`` will disable the extension
+
+If you do not want to use the MySQL Driver you can configure another driver
+(like Postgres for example). Please read the documentation on how to do this : 
+
+- http://httpd.apache.org/docs/2.2/mod/mod_dbd.html#dbdparams
+
+Testing
+=======
+
+After everything is compiled and configured, restart Apache and call
+any URL of your eZ Publish intallation. If you get images then everything
+is OK
