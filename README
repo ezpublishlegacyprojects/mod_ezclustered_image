@@ -1,0 +1,4 @@
+Apache module which fetches images in eZ Publish clusters 
+so index_image*.php should not be needed anymore.
+
+Should be compatible with MySQL, PostgreSQL, Oracle and Apache > 2.2 

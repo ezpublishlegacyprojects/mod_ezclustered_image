@@ -1,0 +1,25 @@
++------------------------------------------------------------------------------------------------+
+|DEBIAN Users please read the following note carefully before doing anything with this module !! |
++------------------------------------------------------------------------------------------------+
+
+I tried to get this module compiling on bot stable and unstable distribution.
+
+However this module does not currently compiles because the version
+of apr available in debian packages is not recent enough it seems
+that libaprutil1-dev is in version 1.2.12 and I need the apr-util 1.3
+API, especially the APR DBD Framework.
+
+This issue will stay pending unless the Debian maintainers decide
+to upgrade libaprutil1-dev to the latest APR-util version.
+
+If you really want to use this module, the only solution for you
+is to compile Apache2 by yourself but make sure you add the following
+lines to the configure : 
+
+--with-included-apr \
+--with-mysql=/path/to/mysqlincludes
+
+If a Debian expert / maintainer ever happen to read this and think I am wrong
+or he can fixes the issue feel free to send me an email about that : 
+
+  jr@ez.no
