@@ -28,10 +28,6 @@ install: install-modules-yes
 clean:
 	-rm -f mod_ezclustered_image.o mod_ezclustered_image.lo mod_ezclustered_image.slo mod_ezclustered_image.la 
 
-#   simple test
-test: reload
-	lynx -mime_header http://localhost/ezclustered_image
-
 #   install and activate shared object by reloading Apache to
 #   force a reload of the shared object file
 reload: install restart
@@ -44,4 +40,3 @@ restart:
 	$(APACHECTL) restart
 stop:
 	$(APACHECTL) stop
-
