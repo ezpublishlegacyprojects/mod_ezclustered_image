@@ -29,18 +29,11 @@ I hope this copy/paste tutorial will be usefull
 
     tar zxvf mod_ezclustered_image.tar.gz
     cd mod_ezclustered_image
-    apxs -ci mod_ezclustered_image.c
+    apxs -cia mod_ezclustered_image.c
     apache2ctl restart
 
 
-Loading the module
-==================
-
-Just copy/paste the following line in your httpd.conf
-
-::
-
-    LoadModule ezclustered_image_module modules/mod_ezclustered_image.so
+This will compile, install and load the module
 
 Configuring the module
 ======================
