@@ -1,19 +1,19 @@
 /**
- * Copyright [2008] [Jérôme Renard jr@ez.no] 
+ * Copyright [2008] [Jérôme Renard jr@ez.no]
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); 
- * you may not use this file except in compliance with the License. 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
  *
- * You may obtain a copy of the License at 
+ * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0 
- * 
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, 
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * See the License for the specific language governing permissions and 
- * limitations under the License. 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * Please read INSTALL to learn how to install this module
  **/
@@ -107,13 +107,13 @@ static int ezclustered_image_handler(request_rec *r)
     if(apr_dbd_get_row(dbd->driver, r->pool, res, &row, 1) == -1) {
         return HTTP_NOT_FOUND;
     }
-    
+
     /* {{{ Fetching datatype, mtime, name_hash cols */
     datatype  = apr_dbd_get_entry(dbd->driver, row, 0);
     mtime     = (time_t)atoi(apr_dbd_get_entry(dbd->driver, row, 1));
     name_hash = apr_dbd_get_entry(dbd->driver, row, 4);
     /* }}} */
-    
+
     /* {{{ Expires header
      *
      * The image never expires.
@@ -123,12 +123,12 @@ static int ezclustered_image_handler(request_rec *r)
      *
      * http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21
      *
-     * To mark a response as "never expires," an origin server sends 
-     * an Expires date approximately one year from the time the response is sent. 
+     * To mark a response as "never expires," an origin server sends
+     * an Expires date approximately one year from the time the response is sent.
      * HTTP/1.1 servers SHOULD NOT send Expires dates more than one year in the future.
      *
      * image mtime + 1 year
-     */ 
+     */
     char *expires_date;
     mtime = mtime + 31536000;
     apr_time_ansi_put(&ansi_time, mtime);
@@ -186,9 +186,9 @@ static int ezclustered_image_handler(request_rec *r)
 /* {{{ static void ezclustered_image_register_hooks(apr_pool_t *p) */
 static void ezclustered_image_register_hooks(apr_pool_t *p)
 {
-    ap_hook_handler(ezclustered_image_handler, 
-                    NULL, 
-                    NULL, 
+    ap_hook_handler(ezclustered_image_handler,
+                    NULL,
+                    NULL,
                     APR_HOOK_MIDDLE);
 }
 /* }}} */
@@ -205,6 +205,6 @@ module AP_MODULE_DECLARE_DATA ezclustered_image_module = {
 };
 /* }}} */
 
-/* 
+/*
  * vim600: sw=4 ts=4 fdm=marker
  */
